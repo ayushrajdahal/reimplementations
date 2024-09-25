@@ -167,20 +167,22 @@ class Autoformer(nn.Module):
         X_de_s = torch.cat([X_en_s, X0], dim=1)
         X_de_t = torch.cat([X_en_t, Xmean], dim=1)
 
-        X_en = self.embed(X)
+        X_en_s = self.embed(X)
 
         # Encoder
         for layer in self.encoder_layers:
             X_en_s = layer(X_en_s)
 
+        X_de_s = self.embed(X_de_s)
+
         # Decoder
         for layer in self.decoder_layers:
-            X_de_s, X_de_t = layer(X_de_s, X_en_s)
+            X_de_s, X_de_t = layer(X_de_s, X_en_s, X_de_t)
 
         # Final prediction
         X_pred = self.mlp(X_de_s) + X_de_t
 
-        return X_pred[:, -O:, :]
+        return X_pred[:, I//2:I//2+O, :] # before: [:, -O, :]
 
 
 # Parameters
