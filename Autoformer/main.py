@@ -157,15 +157,21 @@ class Autoformer(nn.Module):
         B, _, d = X.shape
 
         # decompose the embedded input into seasonal and trend-cyclical components.
-        X_en_s, X_en_t = self.series_decomp(X[I//2:])
+        X_en_s, X_en_t = self.series_decomp(X[:, I//2:])
+
+        # Step 2: Prepare X0 and Xmean
+        X0 = torch.zeros(X.size(0), O, d, device=X.device) # or self.d
+        Xmean = X[:, I//2:].mean(dim=1, keepdim=True).repeat(1, O, 1)
+
+        # Prepare decoder input
+        X_de_s = torch.cat([X_en_s, X0], dim=1)
+        X_de_t = torch.cat([X_en_t, Xmean], dim=1)
+
+        X_en = self.embed(X)
 
         # Encoder
         for layer in self.encoder_layers:
             X_en_s = layer(X_en_s)
-
-        # Prepare decoder input
-        X_de_s = torch.cat([X_en_s, torch.zeros(B, O, d, device=X.device)], dim=1)
-        X_de_t = torch.cat([X_en_t, X_en.mean(dim=1, keepdim=True).repeat(1, O, 1)], dim=1)
 
         # Decoder
         for layer in self.decoder_layers:
