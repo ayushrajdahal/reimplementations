@@ -191,17 +191,20 @@ d_model = 512   # dimension of the hidden state
 h = 8           # number of attention heads
 c = 2           # hyper-parameter for selecting the top-k autocorrelations
 kernel_size = 25
-N = 2
-M = 1
-d = 10  # Example input dimension
+N = 2           # number of encoder layers
+M = 1           # number of decoder layers
+d = 10          # Example input dimension
+I = 100         # Example input length
+O = 10          # Example prediction length
+B = 32          # Example batch size
 
 # Create model
 model = Autoformer(d, d_model, h, c, kernel_size, N, M)
 
 # Example input
-X = torch.randn(I, d)  # I is the input length, d is the input dimension
+X = torch.randn(B, I, d)  # I is the input length, d is the input dimension
 
 # Forward pass
 output = model(X, I, O)  # O is the prediction length
 
-print(output)q
+print(output)
