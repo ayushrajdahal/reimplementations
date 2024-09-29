@@ -22,6 +22,20 @@ class SeriesDecomp(nn.Module):
         x_s = x - x_t
         return x_s, x_t
     
+class CustomLayerNorm(nn.Module):
+    """
+    Custom Layer Normalization layer for seasonal part. Taken from the original implementation.
+    """
+
+    def __init__(self, channels):
+        super(CustomLayerNorm, self).__init__()
+        self.layernorm = nn.LayerNorm(channels)
+    
+    def forward(self, x):
+        x_hat = self.layernorm(x)
+        bias = torch.mean(x_hat, dim=1).unsqueeze(1).repeat(1, x.size(1), 1)
+        return x_hat - bias
+
 class AutoCorrelation(nn.Module):
 
     """
@@ -105,8 +119,6 @@ class AutoformerEncoderLayer(nn.Module):
     # algo 1: lines 5 to 8
     def forward(self, x):
         x_s,_ = self.series_decomp(self.auto_correlation(x, x, x) + x)
-
-        # MODIFIED: use series decomp after ffwd
         x_s, _ = self.series_decomp(self.feed_forward(x_s) + x_s)
 
         return x_s
@@ -135,7 +147,6 @@ class AutoformerDecoderLayer(nn.Module):
             nn.Linear(d_model, d_model)
         )
 
-        # MODIFIED: 3 separate MLPs
         self.mlp1 = nn.Linear(d_model, d_model)
         self.mlp2 = nn.Linear(d_model, d_model)
         self.mlp3 = nn.Linear(d_model, d_model)
