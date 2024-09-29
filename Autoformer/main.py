@@ -3,6 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class SeriesDecomp(nn.Module):
+
+    """
+    Returns the trend and the seasonal components of the time series.
+    """
+
     def __init__(self, kernel_size):
         super(SeriesDecomp, self).__init__()
 
@@ -18,6 +23,11 @@ class SeriesDecomp(nn.Module):
         return x_s, x_t
     
 class AutoCorrelation(nn.Module):
+
+    """
+    Computes the auto-correlation of the input sequence.
+    """
+
     def __init__(self, d_model, h, c):
         super(AutoCorrelation, self).__init__()
 
@@ -69,6 +79,11 @@ class AutoCorrelation(nn.Module):
         return R.permute(0, 2, 1, 3).contiguous().view(B, L, self.d_model)
 
 class AutoformerEncoderLayer(nn.Module):
+
+    """
+    The encoder layer of the Autoformer.
+    """
+
     def __init__(self, d_model, h, c, kernel_size):
         super(AutoformerEncoderLayer, self).__init__()
 
@@ -97,8 +112,21 @@ class AutoformerEncoderLayer(nn.Module):
         return x_s
 
 class AutoformerDecoderLayer(nn.Module):
+
+    """
+    The decoder layer of the Autoformer.
+    """
+
     def __init__(self, d_model, h, c, kernel_size):
         super(AutoformerDecoderLayer, self).__init__()
+
+        """
+        d_model: The dimension of the hidden state.
+        h: The number of attention heads.
+        c: A hyper-parameter for selecting the top-k autocorrelations.
+        kernel_size: The size of the moving average window.
+        """
+
         self.series_decomp = SeriesDecomp(kernel_size)
         self.auto_correlation = AutoCorrelation(d_model, h, c)
         self.feed_forward = nn.Sequential(
@@ -128,6 +156,11 @@ class AutoformerDecoderLayer(nn.Module):
 
 
 class Autoformer(nn.Module):
+
+    """
+    The Autoformer model.
+    """
+
     def __init__(self, d, d_model, h, c, kernel_size, N, M):
         super(Autoformer, self).__init__()
 
