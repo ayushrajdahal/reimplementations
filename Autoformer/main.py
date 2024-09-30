@@ -8,7 +8,7 @@ class SeriesDecomp(nn.Module):
     Returns the trend and the seasonal components of the time series.
     """
 
-    def __init__(self, kernel_size):
+    def __init__(self, kernel_size:int):
         super(SeriesDecomp, self).__init__()
 
         # keep the series length unchanged
@@ -23,11 +23,12 @@ class SeriesDecomp(nn.Module):
         return x_s, x_t
     
 class CustomLayerNorm(nn.Module):
+
     """
     Custom Layer Normalization layer for seasonal part. Taken from the original implementation.
     """
 
-    def __init__(self, channels):
+    def __init__(self, channels:int):
         super(CustomLayerNorm, self).__init__()
         self.layernorm = nn.LayerNorm(channels)
     
@@ -42,7 +43,7 @@ class AutoCorrelation(nn.Module):
     Computes the auto-correlation of the input sequence.
     """
 
-    def __init__(self, d_model, h, c):
+    def __init__(self, d_model:int, h:int, c:int):
         super(AutoCorrelation, self).__init__()
 
         self.d_model = d_model # dimension of the hidden state.
@@ -98,7 +99,7 @@ class AutoformerEncoderLayer(nn.Module):
     The encoder layer of the Autoformer.
     """
 
-    def __init__(self, d_model, h, c, kernel_size):
+    def __init__(self, d_model:int, h:int, c:int, kernel_size:int):
         super(AutoformerEncoderLayer, self).__init__()
 
         """
@@ -129,7 +130,7 @@ class AutoformerDecoderLayer(nn.Module):
     The decoder layer of the Autoformer.
     """
 
-    def __init__(self, d_model, h, c, kernel_size):
+    def __init__(self, d_model:int, h:int, c:int, kernel_size:int):
         super(AutoformerDecoderLayer, self).__init__()
 
         """
@@ -152,6 +153,7 @@ class AutoformerDecoderLayer(nn.Module):
         self.mlp3 = nn.Linear(d_model, d_model)
 
     def forward(self, x, enc_output, x_t):
+
         """
         x: The input data.
         enc_output: The output of the encoder.
@@ -172,7 +174,7 @@ class Autoformer(nn.Module):
     The Autoformer model.
     """
 
-    def __init__(self, d, d_model, h, c, kernel_size, N, M):
+    def __init__(self, d:int, d_model:int, h:int, c:int, kernel_size:int, N:int, M:int):
         super(Autoformer, self).__init__()
 
         """
@@ -192,6 +194,7 @@ class Autoformer(nn.Module):
         self.series_decomp = SeriesDecomp(kernel_size)
 
     def forward(self, X, I, O):
+
         """
         X: Input past time series
         I: Input Length
@@ -204,7 +207,7 @@ class Autoformer(nn.Module):
         X_en_s, X_en_t = self.series_decomp(X[:, I//2:])
 
         # Step 2: Prepare X0 and Xmean
-        X0 = torch.zeros(X.size(0), O, d, device=X.device) # or self.d
+        X0 = torch.zeros(X.size(0), O, d, device=X.device) # d could be replaced by self.d from init
         Xmean = X[:, I//2:].mean(dim=1, keepdim=True).repeat(1, O, 1)
 
         # Prepare decoder input
