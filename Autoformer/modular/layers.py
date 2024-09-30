@@ -50,21 +50,16 @@ class AutoCorrelation(nn.Module):
         self.v_proj = nn.Linear(d_model, d_model)
 
     def forward(self, Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor) -> torch.Tensor:
-        """
-        Forward pass of the AutoCorrelation layer.
-
-        Args:
-            Q (torch.Tensor): Query tensor
-            K (torch.Tensor): Key tensor
-            V (torch.Tensor): Value tensor
-
-        Returns:
-            torch.Tensor: Output tensor
-        """
         B, L, _ = Q.size()
-        Q = self.q_proj(Q).view(B, L, self.h, -1).permute(0, 2, 1, 3)
-        K = self.k_proj(K).view(B, L, self.h, -1).permute(0, 2, 1, 3)
-        V = self.v_proj(V).view(B, L, self.h, -1).permute(0, 2, 1, 3)
+        
+        # Apply projections
+        Q = self.q_proj(Q)
+        K = self.k_proj(K)
+        V = self.v_proj(V)
+
+        Q = Q.view(B, L, self.h, -1).permute(0, 2, 1, 3)
+        K = K.view(B, L, self.h, -1).permute(0, 2, 1, 3)
+        V = V.view(B, L, self.h, -1).permute(0, 2, 1, 3)
 
         Q = torch.fft.rfft(Q, dim=2)
         K = torch.fft.rfft(K, dim=2)
@@ -81,7 +76,9 @@ class AutoCorrelation(nn.Module):
 
         R = torch.zeros_like(V)
         for i in range(topk):
-            R += W_topk[:, :, i, :].unsqueeze(2) * V.gather(2, (I_topk[:, :, i, :].unsqueeze(2) + Index).clamp(max=L-1))
+            gathered_indices = (I_topk[:, :, i, :].unsqueeze(2) + Index).clamp(max=L-1)
+            gathered_indices = gathered_indices.expand_as(V[:, :, :L, :])
+            R[:, :, :L, :] += W_topk[:, :, i, :].unsqueeze(2) * V.gather(2, gathered_indices)
 
         R = R.sum(dim=2)
         return R.permute(0, 2, 1, 3).contiguous().view(B, L, -1)
