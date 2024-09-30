@@ -43,15 +43,21 @@ class AutoCorrelation(nn.Module):
     Computes the auto-correlation of the input sequence.
     """
 
-    def __init__(self, d_model:int, h:int, c:int):
+    def __init__(self, d_model:int, h:int, c:int, d_keys:int=None):
         super(AutoCorrelation, self).__init__()
 
         self.d_model = d_model # dimension of the hidden state.
+        self.d_keys = d_keys or (d_model // h) # dimension of the keys and queries.
         self.h = h # number of attention heads.
         self.c = c # hyper-parameter for selecting the top-k autocorrelations.
 
+        self.k_proj = nn.Linear(d_model, self.d_keys*h)
+        self.v_proj = nn.Linear(d_model, d_model*h)
+        self.q_proj = nn.Linear(d_model, self.d_keys*h)
+
     def forward(self, Q, K, V):
         B, L, _ = Q.size() # batch size, sequence length, and hidden dimension.
+        _, S, _ = K.size() # sequence length of the key-value pairs.
 
         # reshape and permute for multi-headed attention
         Q = Q.view(B, L, self.h, self.d_model // self.h).permute(0, 2, 1, 3)
@@ -166,6 +172,7 @@ class AutoformerDecoderLayer(nn.Module):
         enc_output: The output of the encoder.
         x_t: The trend-cyclical component.
         """
+        
         s1, t1 = self.series_decomp(self.auto_correlation(x, x, x) + x)
         s2, t2 = self.series_decomp(self.auto_correlation(s1, enc_output, enc_output) + s1)
         s3, t3 = self.series_decomp(self.feed_forward(s2) + s2)
