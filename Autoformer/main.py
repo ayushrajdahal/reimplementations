@@ -187,13 +187,16 @@ class Autoformer(nn.Module):
         super(Autoformer, self).__init__()
 
         """
-        d_model: The dimension of the hidden state.
-        h: The number of attention heads.
-        c: A hyper-parameter for selecting the top-k autocorrelations.
-        kernel_size: The size of the moving average window.
-        N: The number of encoder layers.
-        M: The number of decoder layers.
+        d (int): The input dimension.
+        d_model (int): The dimension of the hidden state.
+        h (int): The number of attention heads.
+        c (int): A hyper-parameter for selecting the top-k autocorrelations.
+        kernel_size (int): The size of the moving average window.
+        N (int): The number of encoder layers.
+        M (int): The number of decoder layers.
+        dropout_rate (float): The dropout rate.
         """
+
         self.embed = nn.Linear(d, d_model) # linear layer to embed the input time series.
         self.encoder_layers = nn.ModuleList([AutoformerEncoderLayer(d_model, h, c, kernel_size, dropout_rate) for _ in range(N)])
         self.decoder_layers = nn.ModuleList([AutoformerDecoderLayer(d_model, h, c, kernel_size, dropout_rate) for _ in range(M)])
@@ -205,9 +208,9 @@ class Autoformer(nn.Module):
     def forward(self, X, I, O):
 
         """
-        X: Input past time series
-        I: Input Length
-        O: Predict length
+        X (int): The input data.
+        I (int): The input length.
+        O (int): The prediction length.
         """
 
         B, _, d = X.shape
