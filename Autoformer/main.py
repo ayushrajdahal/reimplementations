@@ -99,28 +99,32 @@ class AutoformerEncoderLayer(nn.Module):
     The encoder layer of the Autoformer.
     """
 
-    def __init__(self, d_model:int, h:int, c:int, kernel_size:int):
+    def __init__(self, d_model:int, h:int, c:int, kernel_size:int, dropout_rate:float=0.1):
         super(AutoformerEncoderLayer, self).__init__()
-
+    
         """
-        d_model: The dimension of the hidden state.
-        h: The number of attention heads.
-        c: A hyper-parameter for selecting the top-k autocorrelations.
-        kernel_size: The size of the moving average window.
+        d_model (int): The dimension of the hidden state.
+        h (int): The number of attention heads.
+        c (int): A hyper-parameter for selecting the top-k autocorrelations.
+        kernel_size (int): The size of the moving average window.
+        dropout_rate (float): The dropout rate.
         """
 
         self.series_decomp = SeriesDecomp(kernel_size)
         self.auto_correlation = AutoCorrelation(d_model, h, c)
+
         self.feed_forward = nn.Sequential(
             nn.Linear(d_model, d_model),
             nn.ReLU(),
             nn.Linear(d_model, d_model)
         )
 
+        self.dropout = nn.Dropout(dropout_rate)
+
     # algo 1: lines 5 to 8
     def forward(self, x):
         x_s,_ = self.series_decomp(self.auto_correlation(x, x, x) + x)
-        x_s, _ = self.series_decomp(self.feed_forward(x_s) + x_s)
+        x_s, _ = self.series_decomp(self.dropout(self.feed_forward(x_s)) + x_s)
 
         return x_s
 
@@ -130,14 +134,15 @@ class AutoformerDecoderLayer(nn.Module):
     The decoder layer of the Autoformer.
     """
 
-    def __init__(self, d_model:int, h:int, c:int, kernel_size:int):
+    def __init__(self, d_model:int, h:int, c:int, kernel_size:int, dropout_rate:float=0.1):
         super(AutoformerDecoderLayer, self).__init__()
 
         """
-        d_model: The dimension of the hidden state.
-        h: The number of attention heads.
-        c: A hyper-parameter for selecting the top-k autocorrelations.
-        kernel_size: The size of the moving average window.
+        d_model (int): The dimension of the hidden state.
+        h (int): The number of attention heads.
+        c (int): A hyper-parameter for selecting the top-k autocorrelations.
+        kernel_size (int): The size of the moving average window.
+        dropout_rate (float): The dropout rate.
         """
 
         self.series_decomp = SeriesDecomp(kernel_size)
@@ -152,6 +157,8 @@ class AutoformerDecoderLayer(nn.Module):
         self.mlp2 = nn.Linear(d_model, d_model)
         self.mlp3 = nn.Linear(d_model, d_model)
 
+        self.dropout = nn.Dropout(dropout_rate)
+
     def forward(self, x, enc_output, x_t):
 
         """
@@ -162,10 +169,12 @@ class AutoformerDecoderLayer(nn.Module):
         s1, t1 = self.series_decomp(self.auto_correlation(x, x, x) + x)
         s2, t2 = self.series_decomp(self.auto_correlation(s1, enc_output, enc_output) + s1)
         s3, t3 = self.series_decomp(self.feed_forward(s2) + s2)
+        
+        # DIFFERENT: in Liu's implementation, t1, t2, and t3 are directly summed, followed by MLP and dropout.
+        t = x_t + self.dropout(self.mlp1(t1)) + self.dropout(self.mlp2(t2)) + self.dropout(self.mlp3(t3))
 
-        t = x_t + self.mlp1(t1) + self.mlp2(t2) + self.mlp3(t3)
-
-        return s3, t # MODIFIED: outputs final seasonal and agg t
+        # output final seasonal and aggregated trend-cyclical components.
+        return s3, t
 
 
 class Autoformer(nn.Module):
@@ -174,7 +183,7 @@ class Autoformer(nn.Module):
     The Autoformer model.
     """
 
-    def __init__(self, d:int, d_model:int, h:int, c:int, kernel_size:int, N:int, M:int):
+    def __init__(self, d:int, d_model:int, h:int, c:int, kernel_size:int, N:int, M:int, dropout_rate:float=0.1):
         super(Autoformer, self).__init__()
 
         """
@@ -186,8 +195,8 @@ class Autoformer(nn.Module):
         M: The number of decoder layers.
         """
         self.embed = nn.Linear(d, d_model) # linear layer to embed the input time series.
-        self.encoder_layers = nn.ModuleList([AutoformerEncoderLayer(d_model, h, c, kernel_size) for _ in range(N)])
-        self.decoder_layers = nn.ModuleList([AutoformerDecoderLayer(d_model, h, c, kernel_size) for _ in range(M)])
+        self.encoder_layers = nn.ModuleList([AutoformerEncoderLayer(d_model, h, c, kernel_size, dropout_rate) for _ in range(N)])
+        self.decoder_layers = nn.ModuleList([AutoformerDecoderLayer(d_model, h, c, kernel_size, dropout_rate) for _ in range(M)])
         self.mlp = nn.Linear(d_model, d) # projects the hidden state to the output dimension.
 
         self.N = N
