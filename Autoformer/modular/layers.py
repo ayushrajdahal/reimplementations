@@ -45,6 +45,10 @@ class AutoCorrelation(nn.Module):
         self.h = h
         self.c = c
 
+        self.q_proj = nn.Linear(d_model, d_model)
+        self.k_proj = nn.Linear(d_model, d_model)
+        self.v_proj = nn.Linear(d_model, d_model)
+
     def forward(self, Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor) -> torch.Tensor:
         """
         Forward pass of the AutoCorrelation layer.
@@ -58,9 +62,9 @@ class AutoCorrelation(nn.Module):
             torch.Tensor: Output tensor
         """
         B, L, _ = Q.size()
-        Q = Q.view(B, L, self.h, -1).permute(0, 2, 1, 3)
-        K = K.view(B, L, self.h, -1).permute(0, 2, 1, 3)
-        V = V.view(B, L, self.h, -1).permute(0, 2, 1, 3)
+        Q = self.q_proj(Q).view(B, L, self.h, -1).permute(0, 2, 1, 3)
+        K = self.k_proj(K).view(B, L, self.h, -1).permute(0, 2, 1, 3)
+        V = self.v_proj(V).view(B, L, self.h, -1).permute(0, 2, 1, 3)
 
         Q = torch.fft.rfft(Q, dim=2)
         K = torch.fft.rfft(K, dim=2)
